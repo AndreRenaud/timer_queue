@@ -17,12 +17,14 @@ int timer_add(uint64_t expires, timer_callback callback, void *data);
 
 /**
  * Removes a callback that was previously added
- * @return < 0 on failure, >= 0 on success
+ * @return number of instances of callback that were removed
  */
 int timer_remove(timer_callback callback, void *data);
 
 /**
- * Checks the timer queue and executes any that have passed
+ * Checks the timer queue and executes any that have expired
+ * Note: expired timers are removed from the system. For repeated
+ * calls they should be manually reinstated
  */
 void timer_update(uint64_t now);
 

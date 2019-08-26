@@ -17,6 +17,14 @@ static void recursive_cb(uint64_t now, void *data)
 	TEST_CHECK(timer_add(now + 1, recursive_cb, data) >= 0);
 }
 
+static void recursive_del_cb(uint64_t now, void *data)
+{
+	atomic_int *i = data;
+	(*i)++;
+	TEST_CHECK(timer_add(now + 1, recursive_cb, data) >= 0);
+	TEST_CHECK(timer_remove(recursive_cb, data) > 0);
+}
+
 static void simple_test(void)
 {
 	atomic_int counter = 0;
@@ -66,6 +74,21 @@ static void threaded_test(void)
 	TEST_CHECK(counter == 5 * 5);
 }
 
+static void remove_test(void)
+{
+	atomic_int counter = 0;
+	TEST_CHECK(timer_add(1, counter_inc_cb, &counter) >= 0);
+	TEST_CHECK(timer_remove(counter_inc_cb, &counter) == 1);
+	timer_update(1);
+	TEST_CHECK(counter == 0);
+
+	TEST_CHECK(timer_add(1, recursive_del_cb, &counter) >= 0);
+	timer_update(1);
+	TEST_CHECK(counter == 1);
+	timer_update(2);
+	TEST_CHECK(counter == 1);
+}
+
 static void expire_test(void)
 {
 	atomic_int counter = 0;
@@ -82,6 +105,7 @@ TEST_LIST = {
 	{"simple", simple_test},
 	{"recursive", recursive_test},
 	{"threaded", threaded_test},
-	{"expire_test", expire_test},
+	{"remove", remove_test},
+	{"expire", expire_test},
 	{0, 0},
 };
