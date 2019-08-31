@@ -1,5 +1,4 @@
 #include <stdbool.h>
-#include <pthread.h>
 #include <errno.h>
 
 #include "timer_queue.h"
@@ -11,16 +10,32 @@ struct timer {
 	bool inuse; // TODO: Replace with uint32_t array & use ffs to find empty slots
 };
 
-#if 1
+#ifdef TIMER_QUEUE_STATS
+static struct timer_stats stats = {};
+#endif
+
+#if defined(__APPLE__) || defined(__linux__)
+/* For posix-pthread compliant systems */
+#include <pthread.h>
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 #define disable_irq() pthread_mutex_lock(&mutex)
 #define enable_irq() pthread_mutex_unlock(&mutex)
 #else
+/* For other systems, ie: embedded, these macros should be defined as appropriate */
 #define disable_irq()
 #define enable_irq()
 #endif
 
 static struct timer timers[TIMER_QUEUE_COUNT] = {};
+
+struct timer_stats *timer_get_stats(void)
+{
+#ifdef TIMER_QUEUE_STATS
+	return &stats;
+#else
+	return NULL;
+#endif
+}
 
 int timer_add(uint64_t expires, timer_callback callback, void *data)
 {
@@ -30,14 +45,25 @@ int timer_add(uint64_t expires, timer_callback callback, void *data)
 		if (!timers[slot].inuse)
 			break;
 	if (slot == TIMER_QUEUE_COUNT) {
+#ifdef TIMER_QUEUE_STATS
+		stats.add_failures++;
+#endif
 		enable_irq();
 		return -ENOENT;
 	}
+#ifdef TIMER_QUEUE_STATS
+	stats.added++;
+#endif
 
 	timers[slot].expires = expires;
 	timers[slot].callback = callback;
 	timers[slot].data = data;
 	timers[slot].inuse = 1;
+#ifdef TIMER_QUEUE_STATS
+	stats.current_outstanding++;
+	if (stats.current_outstanding > stats.max_outstanding)
+		stats.max_outstanding = stats.current_outstanding;
+#endif
 
 	enable_irq();
 
@@ -54,6 +80,10 @@ int timer_remove(timer_callback callback, void *data)
 			timers[i].inuse = 0;
 		}
 	}
+#ifdef TIMER_QUEUE_STATS
+	stats.removed += removed;
+	stats.current_outstanding -= removed;
+#endif
 	enable_irq();
 	return removed;
 }
@@ -66,6 +96,10 @@ void timer_update(uint64_t now)
 			timer_callback callback = timers[i].callback;
 			void*data = timers[i].data;
 			timers[i].inuse = 0;
+#ifdef TIMER_QUEUE_STATS
+			stats.current_outstanding--;
+			stats.executed++;
+#endif
 			enable_irq();
 
 			callback(now, data);

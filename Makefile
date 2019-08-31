@@ -1,4 +1,4 @@
-CFLAGS=-g -Wall -pipe -Wextra
+CFLAGS=-g -Wall -pipe -Wextra -DTIMER_QUEUE_STATS
 LFLAGS=
 
 default: timer_queue_test

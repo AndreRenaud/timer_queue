@@ -52,27 +52,28 @@ static void recursive_test(void)
 
 static void *timer_thread(void *data)
 {
-	for (int i = 0; i < 5; i++) {
-		TEST_CHECK(timer_add(i, counter_inc_cb, data) >= 0);
+	for (int i = 0; i < 10; i++) {
+		while (timer_add(i, counter_inc_cb, data) < 0)
+			usleep(1);
 	}
 	return NULL;
 }
 
 static void threaded_test(void)
 {
-	pthread_t threads[5];
+	pthread_t threads[10];
 	atomic_int counter = 0;
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 10; i++)
 		pthread_create(&threads[i], NULL, timer_thread, &counter);
 
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 10; i++) {
 		usleep(1); // yield
 		timer_update(i);
 	}
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 10; i++)
 		pthread_join(threads[i], NULL);
-	timer_update(10);
-	TEST_CHECK(counter == 5 * 5);
+	timer_update(100);
+	TEST_CHECK(counter == 10 * 10);
 }
 
 static void remove_test(void)
@@ -102,11 +103,30 @@ static void expire_test(void)
 	TEST_CHECK(timer_next_expires(1) == TIMER_INFINITY);
 }
 
+static void stats_test(void)
+{
+	atomic_int counter = 0;
+	TEST_CHECK(timer_add(1, counter_inc_cb, &counter) >= 0);
+	TEST_CHECK(timer_get_stats()->added == 1);
+	TEST_CHECK(timer_get_stats()->current_outstanding == 1);
+	TEST_CHECK(timer_remove(counter_inc_cb, &counter) == 1);
+	TEST_CHECK(timer_get_stats()->removed == 1);
+	TEST_CHECK(timer_get_stats()->max_outstanding == 1);
+	TEST_CHECK(timer_get_stats()->current_outstanding == 0);
+	TEST_CHECK(timer_add(1, counter_inc_cb, &counter) >= 0);
+	TEST_CHECK(timer_add(1, counter_inc_cb, &counter) >= 0);
+	TEST_CHECK(timer_add(1, counter_inc_cb, &counter) >= 0);
+	TEST_CHECK(timer_get_stats()->max_outstanding == 3);
+	timer_update(1);
+	TEST_CHECK(timer_get_stats()->executed == 3);
+}
+
 TEST_LIST = {
 	{"simple", simple_test},
 	{"recursive", recursive_test},
 	{"threaded", threaded_test},
 	{"remove", remove_test},
 	{"expire", expire_test},
+	{"stats", stats_test},
 	{0, 0},
 };
