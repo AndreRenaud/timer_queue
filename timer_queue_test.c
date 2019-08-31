@@ -6,6 +6,7 @@
 
 static void counter_inc_cb(uint64_t now, void *data)
 {
+	(void)now;
 	atomic_int *i = data;
 	(*i)++;
 }

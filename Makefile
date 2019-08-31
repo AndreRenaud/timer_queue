@@ -1,4 +1,4 @@
-CFLAGS=-g -Wall -pipe
+CFLAGS=-g -Wall -pipe -Wextra
 LFLAGS=
 
 default: timer_queue_test
@@ -10,6 +10,7 @@ test: timer_queue_test
 	./timer_queue_test
 
 %.o: %.c timer_queue.h Makefile
+	cppcheck --quiet $<
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 clean:
