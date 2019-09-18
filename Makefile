@@ -1,10 +1,10 @@
 CFLAGS=-g -Wall -pipe -Wextra -DTIMER_QUEUE_STATS
-LFLAGS=
+LFLAGS=-lpthread
 
 default: timer_queue_test
 
 timer_queue_test: timer_queue_test.o timer_queue.o
-	$(CC) -o $@ timer_queue_test.o timer_queue.o
+	$(CC) -o $@ timer_queue_test.o timer_queue.o $(LFLAGS)
 
 test: timer_queue_test
 	./timer_queue_test
