@@ -17,4 +17,4 @@ jobs:
           command: make test
       - run:
           name: Valgrind
-          command: valgrind ./timer_queue_test
+          command: valgrind --leak-check=full --error-exitcode=1 ./timer_queue_test
